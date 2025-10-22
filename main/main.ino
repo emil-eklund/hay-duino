@@ -1,5 +1,4 @@
 #include <LiquidCrystal.h>
-#include <Servo.h>
 
 /*
  * Quit horsing around
@@ -9,16 +8,13 @@
 // Display
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-// Servo
-Servo servo;
-
 // Inputs
 uint8_t HOURS_BUTTON = 6;
 uint8_t MINUTES_BUTTON = 7;
 
 // Outputs
 uint8_t LED_PIN = 8;
-uint8_t SERVO_CONTROL_PIN = 9;
+uint8_t SOLENOID_PIN = 9;
 
 // Helper constants
 unsigned const long HOUR_MS = 60l * 60l * 1000l;
@@ -38,19 +34,16 @@ unsigned long lastRender = 0; // Used for render delay. This is to avoid flicker
 unsigned long timerEnd = 0; // The expected end of the timer
 unsigned long timerDurationMs = 0; // The duration of the timer
 
-int servoPosition = 0;
-
 void setup()
 {
     lcd.begin(16, 2);
     pinMode(HOURS_BUTTON, INPUT);
     pinMode(MINUTES_BUTTON, INPUT);
     pinMode(LED_PIN, OUTPUT);
-    servo.attach(SERVO_CONTROL_PIN);
+    pinMode(SOLENOID_PIN, OUTPUT);
+    digitalWrite(SOLENOID_PIN, LOW);
 
     printTime(0);
-
-    servo.write(servoPosition);
 }
 
 void loop()
@@ -78,12 +71,6 @@ void loop()
             lastInput = millis();
             timerEnd = millis() + timerDurationMs;
             printTime(timerDurationMs);
-
-            if (servoPosition != 0) 
-            {
-              servo.write(0);
-              servoPosition = 0;
-            }
         }
     }
 
@@ -107,8 +94,12 @@ void loop()
         if (timerEnd > 0 && millis() > timerEnd)
         {
             digitalWrite(LED_PIN, HIGH);
-            servo.write(179);
-            servoPosition = 179;
+            
+            // Activate solenoid with a brief 100ms impulse
+            digitalWrite(SOLENOID_PIN, HIGH);
+            delay(100);
+            digitalWrite(SOLENOID_PIN, LOW);
+            
             lcd.clear();
             lcd.setCursor(0, 0);
             lcd.print("Time's up!");
