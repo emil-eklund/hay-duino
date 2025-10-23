@@ -25,6 +25,7 @@ unsigned const long debounceMillis = 400l; // Time until next input is accepted
 unsigned const long renderDelayMs = 1000l; // Time between each render
 unsigned const long timerDelayMs = 3000l; // Time until timer starts counting down
 unsigned const long timerConfigurationDurationMs = 10000l; // Time until the timer duration resets to zero
+unsigned const long solenoidImpulseDurationMs = 100l; // Duration of solenoid activation impulse
 
 // Variables
 unsigned long lastInput = 0; // Used for debounce and timer start
@@ -33,6 +34,7 @@ unsigned long lastRender = 0; // Used for render delay. This is to avoid flicker
 // Variables for timer
 unsigned long timerEnd = 0; // The expected end of the timer
 unsigned long timerDurationMs = 0; // The duration of the timer
+unsigned long solenoidActivationTime = 0; // Time when solenoid was activated
 
 void setup()
 {
@@ -95,10 +97,12 @@ void loop()
         {
             digitalWrite(LED_PIN, HIGH);
             
-            // Activate solenoid with a brief 100ms impulse
-            digitalWrite(SOLENOID_PIN, HIGH);
-            delay(100);
-            digitalWrite(SOLENOID_PIN, LOW);
+            // Activate solenoid with a brief impulse (non-blocking)
+            if (solenoidActivationTime == 0)
+            {
+                digitalWrite(SOLENOID_PIN, HIGH);
+                solenoidActivationTime = millis();
+            }
             
             lcd.clear();
             lcd.setCursor(0, 0);
@@ -107,6 +111,13 @@ void loop()
             lcd.print("Press to reset");
             while (true)
             {
+                // Check if solenoid impulse duration has elapsed
+                if (solenoidActivationTime > 0 && millis() - solenoidActivationTime >= solenoidImpulseDurationMs)
+                {
+                    digitalWrite(SOLENOID_PIN, LOW);
+                    solenoidActivationTime = 0;
+                }
+                
                 bool hoursButtonPressed = digitalRead(HOURS_BUTTON) == HIGH;
                 bool minutesButtonPressed = digitalRead(MINUTES_BUTTON) == HIGH;
                 if (hoursButtonPressed || minutesButtonPressed)
@@ -114,6 +125,8 @@ void loop()
                     timerEnd = 0;
                     timerDurationMs = 0;
                     digitalWrite(LED_PIN, LOW);
+                    digitalWrite(SOLENOID_PIN, LOW);
+                    solenoidActivationTime = 0;
                     break;
                 }
             }
